@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인턴 면담 일지 자동 작성기</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Square+AC:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Nanum Square AC', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; }
+.container { max-width: 820px; margin: 0 auto; }
+header { margin-bottom: 2rem; }
+header h1 { font-size: 22px; font-weight: 800; color: #1a1a1a; line-height: 1.3; margin-bottom: 4px; }
+header p { font-size: 13px; color: #888; }
+.accent { color: #F04D22; }
+
+.card { background: #fff; border-radius: 16px; border: 0.5px solid #e0ddd6; padding: 1.5rem; margin-bottom: 1rem; }
+.card-title { font-size: 13px; font-weight: 700; color: #F04D22; letter-spacing: 0.05em; margin-bottom: 1rem; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label { display: block; font-size: 12px; font-weight: 700; color: #666; margin-bottom: 6px; }
+label .sub { font-weight: 400; color: #bbb; }
+input[type="text"], input[type="date"], select {
+  width: 100%; padding: 10px 12px; border: 1px solid #e0ddd6; border-radius: 8px;
+  font-family: 'Nanum Square AC', sans-serif; font-size: 14px; color: #1a1a1a;
+  background: #faf9f7; outline: none; transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: #F04D22; background: #fff; }
+input[readonly] { color: #888; cursor: default; }
+
+
+
+
+/* 키워드 */
+.kw-section { display: flex; flex-direction: column; gap: 20px; }
+.kw-label { font-size: 12px; font-weight: 700; color: #444; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.kw-label-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #F04D22; color: #fff; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.tag-pool { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tag { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 50px; border: 1px solid #e0ddd6; background: #faf9f7; font-size: 12px; font-weight: 700; color: #555; cursor: pointer; transition: all 0.12s; user-select: none; }
+.tag:hover { border-color: #F04D22; color: #F04D22; background: #fff5f2; }
+.tag.selected { background: #F04D22; border-color: #F04D22; color: #fff; }
+.tag.custom-tag { border-style: dashed; }
+.tag.custom-tag.selected { border-style: solid; }
+.custom-row { display: flex; gap: 6px; margin-top: 4px; }
+.custom-input { flex: 1; padding: 6px 12px; border: 1px dashed #d0cdc6; border-radius: 50px; font-family: 'Nanum Square AC', sans-serif; font-size: 12px; color: #1a1a1a; background: #faf9f7; outline: none; }
+.custom-input:focus { border-color: #F04D22; background: #fff; border-style: solid; }
+.btn-add { padding: 6px 14px; background: #1a1a1a; color: #fff; border: none; border-radius: 50px; font-family: 'Nanum Square AC', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.12s; }
+.btn-add:hover { background: #F04D22; }
+.preview-bar { min-height: 32px; padding: 6px 10px; background: #f0ece6; border-radius: 8px; font-size: 12px; color: #bbb; margin-top: 8px; line-height: 1.6; }
+.preview-bar.active { color: #333; }
+.divider { border: none; border-top: 0.5px solid #ebe8e2; margin: 4px 0; }
+
+.btn-generate { width: 100%; padding: 14px; background: #F04D22; color: #fff; font-family: 'Nanum Square AC', sans-serif; font-size: 15px; font-weight: 800; border: none; border-radius: 10px; cursor: pointer; transition: background 0.15s, transform 0.1s; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-generate:hover { background: #d43d15; }
+.btn-generate:active { transform: scale(0.99); }
+.btn-generate:disabled { background: #ccc; cursor: not-allowed; }
+.spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.result-section { display: none; }
+.result-card { background: #fff; border-radius: 16px; border: 0.5px solid #e0ddd6; padding: 1.5rem; margin-bottom: 1rem; margin-top: 1rem; }
+.result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.result-header h2 { font-size: 16px; font-weight: 800; }
+.btn-copy-all { padding: 8px 16px; background: #1a1a1a; color: #fff; font-family: 'Nanum Square AC', sans-serif; font-size: 12px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+.btn-copy-all:hover { background: #F04D22; }
+.result-item { margin-bottom: 1.25rem; }
+.result-item:last-child { margin-bottom: 0; }
+.result-label { font-size: 12px; font-weight: 700; color: #F04D22; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+.btn-copy-item { background: none; border: 1px solid #e0ddd6; border-radius: 6px; padding: 3px 10px; font-size: 11px; color: #888; cursor: pointer; font-family: 'Nanum Square AC', sans-serif; transition: all 0.15s; }
+.btn-copy-item:hover { border-color: #F04D22; color: #F04D22; }
+.result-text { font-size: 14px; line-height: 1.8; color: #1a1a1a; background: #faf9f7; border-radius: 8px; padding: 12px 14px; border: 0.5px solid #e0ddd6; white-space: pre-wrap; word-break: break-word; }
+.result-divider { border: none; border-top: 0.5px solid #e8e6e0; margin: 1.25rem 0; }
+
+.toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 50px; font-size: 13px; font-weight: 700; opacity: 0; transition: all 0.25s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>인턴 면담 일지 <span class="accent">자동 작성기</span></h1>
+    <p>키워드를 선택하면 AI가 면담 일지를 작성해드립니다</p>
+  </header>
+
+  <div class="card">
+    <div class="card-title">기본 정보</div>
+    <div class="form-grid">
+      <div>
+        <label>인턴 이름</label>
+        <input type="text" id="internName" placeholder="예: 홍길동" />
+      </div>
+      <div>
+        <label>면담일</label>
+        <input type="date" id="interviewDate" />
+      </div>
+      <div>
+        <label>직무 / 부서</label>
+        <select id="jobRole" onchange="onJobRoleChange(this)">
+          <option value="">팀 선택</option>
+          <option value="CX팀">CX팀</option>
+          <option value="초등팀">초등팀</option>
+          <option value="마케팅팀">마케팅팀</option>
+          <option value="개발팀">개발팀</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div>
+        <label>입사 주차</label>
+        <select id="weekNum">
+          <option value="">선택</option>
+          <option value="1">1주차</option><option value="2">2주차</option>
+          <option value="3">3주차</option><option value="4">4주차</option>
+          <option value="5">5주차</option><option value="6">6주차</option>
+          <option value="7">7주차</option><option value="8">8주차</option>
+          <option value="9">9주차</option><option value="10">10주차</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="card">
+    <div class="card-title">면담 키워드 선택</div>
+    <div class="kw-section">
+      <div class="kw-block">
+        <div class="kw-label"><span class="kw-label-num">1</span> 면담 내용 <span class="sub">— 해당 항목 모두 선택</span></div>
+        <div class="tag-pool" id="pool-interview"></div>
+        <div class="custom-row">
+          <input class="custom-input" id="custom-interview" placeholder="직접 입력 후 추가..." />
+          <button class="btn-add" onclick="addCustomTag('interview')">+ 추가</button>
+        </div>
+        <div class="preview-bar" id="preview-interview">선택된 키워드가 없습니다</div>
+      </div>
+      <hr class="divider">
+      <div class="kw-block">
+        <div class="kw-label"><span class="kw-label-num">2</span> 건의 및 문의 <span class="sub">— 해당 항목 모두 선택</span></div>
+        <div class="tag-pool" id="pool-suggestion"></div>
+        <div class="custom-row">
+          <input class="custom-input" id="custom-suggestion" placeholder="직접 입력 후 추가..." />
+          <button class="btn-add" onclick="addCustomTag('suggestion')">+ 추가</button>
+        </div>
+        <div class="preview-bar" id="preview-suggestion">선택된 키워드가 없습니다</div>
+      </div>
+      <hr class="divider">
+      <div class="kw-block">
+        <div class="kw-label"><span class="kw-label-num">3</span> 조치사항 <span class="sub">— 해당 항목 모두 선택</span></div>
+        <div class="tag-pool" id="pool-action"></div>
+        <div class="custom-row">
+          <input class="custom-input" id="custom-action" placeholder="직접 입력 후 추가..." />
+          <button class="btn-add" onclick="addCustomTag('action')">+ 추가</button>
+        </div>
+        <div class="preview-bar" id="preview-action">선택된 키워드가 없습니다</div>
+      </div>
+      <hr class="divider">
+      <div class="kw-block">
+        <div class="kw-label"><span class="kw-label-num">4</span> 기타 <span class="sub">— 해당 항목 모두 선택</span></div>
+        <div class="tag-pool" id="pool-etc"></div>
+        <div class="custom-row">
+          <input class="custom-input" id="custom-etc" placeholder="직접 입력 후 추가..." />
+          <button class="btn-add" onclick="addCustomTag('etc')">+ 추가</button>
+        </div>
+        <div class="preview-bar" id="preview-etc">선택된 키워드가 없습니다</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-generate" id="btnGenerate" onclick="generateReport()">
+    <div class="spinner" id="spinner"></div>
+    <span id="btnText">✦ AI로 면담 일지 작성하기</span>
+  </button>
+
+  <div class="result-section" id="resultSection">
+    <div class="result-card">
+      <div class="result-header">
+        <h2>작성된 면담 일지</h2>
+        <button class="btn-copy-all" onclick="copyAll()">📋 전체 복사</button>
+      </div>
+      <div class="result-item">
+        <div class="result-label">면담 내용 <button class="btn-copy-item" onclick="copyItem('resultInterview')">복사</button></div>
+        <div class="result-text" id="resultInterview"></div>
+      </div>
+      <hr class="result-divider">
+      <div class="result-item">
+        <div class="result-label">건의 및 문의 <button class="btn-copy-item" onclick="copyItem('resultSuggestion')">복사</button></div>
+        <div class="result-text" id="resultSuggestion"></div>
+      </div>
+      <hr class="result-divider">
+      <div class="result-item">
+        <div class="result-label">조치사항 <button class="btn-copy-item" onclick="copyItem('resultAction')">복사</button></div>
+        <div class="result-text" id="resultAction"></div>
+      </div>
+      <hr class="result-divider">
+      <div class="result-item">
+        <div class="result-label">기타 <button class="btn-copy-item" onclick="copyItem('resultEtc')">복사</button></div>
+        <div class="result-text" id="resultEtc"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:2rem 0 1rem;font-size:11px;color:#bbb;font-family:'Nanum Square AC',sans-serif;font-weight:700;letter-spacing:0.08em;">제작 · CX팀</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const PRESETS = {
+  cx: {
+    label: 'CX팀',
+    jobs: [
+      { label: '사용자 조사', jobRole: 'CX팀 / 사용자 조사' },
+      { label: '콘텐츠 제휴', jobRole: 'CX팀 / 콘텐츠 제휴' },
+      { label: '데이터 분석', jobRole: 'CX팀 / 데이터 분석' },
+      { label: 'UX 리서치', jobRole: 'CX팀 / UX 리서치' },
+    ],
+    interview: [
+      '업무 적응 양호', '업무 적응 다소 어려움',
+      'UX 리서치 흥미', '사용자 조사 업무 참여', '데이터 분석 흥미',
+      '인터뷰·설문 설계 경험', '사용성 테스트 참관',
+      '콘텐츠 제휴 업무 이해도 향상', '시장 분석 업무 수행',
+      '레퍼런스 조사 업무 수행', '신규 분석 관점 습득',
+      '팀 협업 원활', '커뮤니케이션 적극적', '주도적 업무 태도',
+      '피드백 반영 잘함', '목표 대비 달성률 우수', '목표 대비 달성률 미흡'
+    ],
+    suggestion: [
+      '건의·문의 사항 없음',
+      'UX 툴 교육 요청', '리서치 방법론 자료 요청',
+      '사용자 인터뷰 참여 희망', '데이터 분석 심화 교육 요청',
+      '타 부서 협업 기회 요청', '업무 범위 확대 희망',
+      '피드백 빈도 증가 요청', '정규직 전환 가능성 문의'
+    ],
+    action: [
+      '관심 분야 업무 비중 조정', '사용성 조사 업무 배정 검토',
+      '데이터 해석 가이드 제공', '리서치 실습 기회 부여',
+      '콘텐츠 시장 분석 업무 연계', '심화 가이드 제공 예정',
+      '피드백 세션 주 1회 추가', '현재 업무 방식 유지 및 심화',
+      '타 부서 협업 기회 연계', '성장 방향 로드맵 공유'
+    ],
+    etc: [
+      '면담 태도 매우 적극적', '면담 태도 양호',
+      '발전 속도 매우 빠름', '꾸준한 성장세',
+      '분석적 사고력 돋보임', '커뮤니케이션 능숙',
+      '능동적 분석 의지 보임', '특이사항 없음',
+      '향후 정규직 전환 검토 대상'
+    ]
+  },
+  elementary: {
+    label: '초등팀',
+    jobs: [
+      { label: '콘텐츠 개발', jobRole: '초등팀 / 콘텐츠 개발' },
+      { label: '콘텐츠 검수', jobRole: '초등팀 / 콘텐츠 검수' },
+      { label: '교육과정 기획', jobRole: '초등팀 / 교육과정 기획' },
+      { label: '원고 교열·교정', jobRole: '초등팀 / 원고 교열·교정' },
+    ],
+    interview: [
+      '업무 적응 양호', '업무 적응 다소 어려움',
+      '콘텐츠 개발 업무 참여', '콘텐츠 검수 업무 수행',
+      '교육 콘텐츠 기획 흥미', '학습 콘텐츠 구성 이해도 높음',
+      '초등 교육과정 이해 향상 중', '교과 연계 콘텐츠 검토 참여',
+      '문제 유형 분류 작업 수행', '오류 검수 업무 수행',
+      '검수 기준 숙지 중', '원고 교열·교정 업무 경험',
+      '학습 흐름 설계 이해도 향상', '피드백 반영 잘함',
+      '목표 대비 달성률 우수', '목표 대비 달성률 미흡'
+    ],
+    suggestion: [
+      '건의·문의 사항 없음',
+      '검수 기준 상세 안내 요청', '콘텐츠 제작 프로세스 교육 요청',
+      '교육과정 관련 자료 요청', '학습 설계 사례 요청',
+      '업무 범위 확대 희망', '타 부서 협업 기회 요청',
+      '피드백 빈도 증가 요청', '정규직 전환 가능성 문의'
+    ],
+    action: [
+      '콘텐츠 개발 단계별 업무 배정', '검수 가이드라인 문서 공유',
+      '교육과정 연계 자료 제공 예정', '콘텐츠 기획 실습 기회 부여',
+      '오류 유형 사례집 공유', '검수 체크리스트 제공',
+      '심화 가이드 제공 예정', '현재 업무 방식 유지 및 심화',
+      '피드백 세션 주 1회 추가', '성장 방향 로드맵 공유'
+    ],
+    etc: [
+      '면담 태도 매우 적극적', '면담 태도 양호',
+      '발전 속도 매우 빠름', '꾸준한 성장세',
+      '콘텐츠 감수성 높음', '교육적 시각 보유',
+      '꼼꼼한 검수 태도', '논리적 문장 구성 능력 우수',
+      '아동 발달 이해도 양호', '특이사항 없음',
+      '향후 정규직 전환 검토 대상'
+    ]
+  },
+  marketing: {
+    label: '마케팅팀',
+    jobs: [
+      { label: 'SNS 콘텐츠', jobRole: '마케팅팀 / SNS 콘텐츠 운영' },
+      { label: '캠페인 기획', jobRole: '마케팅팀 / 캠페인 기획' },
+      { label: '성과 분석', jobRole: '마케팅팀 / 성과 분석' },
+      { label: '광고 소재 제작', jobRole: '마케팅팀 / 광고 소재 제작' },
+    ],
+    interview: [
+      '업무 적응 양호', '업무 적응 다소 어려움',
+      'SNS 콘텐츠 제작 참여', '캠페인 기획 보조 수행',
+      '카피라이팅 업무 경험', '광고 소재 제작 참여',
+      '성과 데이터 분석 흥미', '트렌드 리서치 수행',
+      '브랜드 가이드라인 이해도 향상', '콘텐츠 채널 운영 경험',
+      '피드백 반영 잘함', '목표 대비 달성률 우수', '목표 대비 달성률 미흡'
+    ],
+    suggestion: [
+      '건의·문의 사항 없음',
+      '광고 툴 교육 요청', '콘텐츠 기획 피드백 요청',
+      '캠페인 전략 자료 요청', '외부 마케팅 세미나 참여 희망',
+      '업무 범위 확대 희망', '피드백 빈도 증가 요청',
+      '정규직 전환 가능성 문의'
+    ],
+    action: [
+      '콘텐츠 제작 실습 기회 확대', '캠페인 기획 단계 참여 연계',
+      '광고 성과 분석 가이드 공유', '브랜드 톤앤매너 교육 제공',
+      '심화 가이드 제공 예정', '피드백 세션 주 1회 추가',
+      '현재 업무 방식 유지 및 심화', '성장 방향 로드맵 공유'
+    ],
+    etc: [
+      '면담 태도 매우 적극적', '면담 태도 양호',
+      '발전 속도 매우 빠름', '꾸준한 성장세',
+      '창의적 아이디어 제안', '트렌드 감각 우수',
+      '커뮤니케이션 능숙', '특이사항 없음',
+      '향후 정규직 전환 검토 대상'
+    ]
+  },
+  dev: {
+    label: '개발팀',
+    jobs: [
+      { label: '프론트엔드', jobRole: '개발팀 / 프론트엔드 개발' },
+      { label: '백엔드', jobRole: '개발팀 / 백엔드 개발' },
+      { label: 'QA·테스트', jobRole: '개발팀 / QA 및 테스트' },
+      { label: '기획·문서화', jobRole: '개발팀 / 기획 및 문서화' },
+    ],
+    interview: [
+      '업무 적응 양호', '업무 적응 다소 어려움',
+      '기능 개발 업무 참여', '코드 리뷰 참여',
+      'QA·테스트 업무 수행', '버그 수정 업무 경험',
+      '기술 스택 이해도 향상 중', '개발 프로세스 숙지 중',
+      '문서화 업무 수행', '팀 코드 컨벤션 적응 중',
+      '피드백 반영 잘함', '목표 대비 달성률 우수', '목표 대비 달성률 미흡'
+    ],
+    suggestion: [
+      '건의·문의 사항 없음',
+      '개발 환경 설정 지원 요청', '기술 스택 교육 자료 요청',
+      '코드 리뷰 기회 확대 요청', '사이드 프로젝트 참여 희망',
+      '업무 범위 확대 희망', '피드백 빈도 증가 요청',
+      '정규직 전환 가능성 문의'
+    ],
+    action: [
+      '단계별 개발 과제 부여', '코드 리뷰 참여 기회 확대',
+      '기술 문서 및 가이드 공유', 'QA 프로세스 실습 연계',
+      '심화 개발 과제 부여', '피드백 세션 주 1회 추가',
+      '현재 업무 방식 유지 및 심화', '성장 방향 로드맵 공유'
+    ],
+    etc: [
+      '면담 태도 매우 적극적', '면담 태도 양호',
+      '발전 속도 매우 빠름', '꾸준한 성장세',
+      '논리적 사고력 우수', '문제 해결 의지 강함',
+      '꼼꼼한 업무 태도', '특이사항 없음',
+      '향후 정규직 전환 검토 대상'
+    ]
+  },
+  common: {
+    label: '공통',
+    jobs: [],
+    interview: [
+      '업무 적응 양호', '업무 적응 다소 어려움',
+      '팀 분위기 만족', '직무 흥미 확인', '직무 적합성 높음',
+      '업무 이해도 빠름', '업무 이해 보완 필요',
+      '팀 협업 원활', '커뮤니케이션 적극적', '주도적 업무 태도',
+      '주간 업무 회고 완료', '목표 대비 달성률 우수', '목표 대비 달성률 미흡',
+      '멘토 조언 적극 수용', '피드백 반영 잘함', '자기계발 의지 높음'
+    ],
+    suggestion: [
+      '건의·문의 사항 없음',
+      '업무 툴 교육 요청', '추가 교육 자료 요청',
+      '팀 미팅 참여 희망', '업무 범위 확대 희망',
+      '피드백 빈도 증가 요청', '1:1 면담 주기 조정 요청',
+      '복리후생 관련 문의', '졸업·취업 일정 관련 문의',
+      '정규직 전환 가능성 문의'
+    ],
+    action: [
+      '관심 분야 업무 비중 조정', '맞춤 업무 배정 검토',
+      '심화 가이드 제공 예정', '추가 학습 자료 공유',
+      '피드백 세션 주 1회 추가', '정기 면담 주기 유지',
+      '단기 프로젝트 과제 부여', '강점 중심 업무 재배치',
+      '성장 방향 로드맵 공유', '현재 업무 방식 유지 및 심화'
+    ],
+    etc: [
+      '면담 태도 매우 적극적', '면담 태도 양호', '면담 태도 다소 소극적',
+      '발전 속도 매우 빠름', '발전 속도 양호', '꾸준한 성장세',
+      '커뮤니케이션 능숙', '대인관계 원만', '팀워크 우수',
+      '자기관리 철저', '긍정적 마인드셋', '문제 해결 의지 강함',
+      '특이사항 없음', '향후 정규직 전환 검토 대상'
+    ]
+  }
+};
+
+const selected = { interview: [], suggestion: [], action: [], etc: [] };
+
+function onJobRoleChange(sel) {
+  const val = sel.value;
+  if (!val) return;
+  const teamKey = val === 'CX팀' ? 'cx'
+    : val === '초등팀' ? 'elementary'
+    : val === '마케팅팀' ? 'marketing'
+    : val === '개발팀' ? 'dev' : 'common';
+  loadKeywords(teamKey);
+  showToast(val + ' 키워드로 변경되었습니다');
+}
+
+
+
+
+
+
+function loadKeywords(teamKey) {
+  const preset = PRESETS[teamKey];
+  ['interview','suggestion','action','etc'].forEach(key => {
+    selected[key] = [];
+    const pool = document.getElementById('pool-' + key);
+    pool.innerHTML = '';
+    preset[key].forEach(text => pool.appendChild(createTagEl(text, key, false)));
+    updatePreview(key);
+  });
+}
+
+function createTagEl(text, key, isCustom) {
+  const tag = document.createElement('span');
+  tag.className = 'tag' + (isCustom ? ' custom-tag' : '');
+  tag.textContent = text;
+  tag.dataset.value = text;
+  tag.addEventListener('click', () => toggleTag(tag, key, text));
+  return tag;
+}
+
+function toggleTag(el, key, text) {
+  const idx = selected[key].indexOf(text);
+  if (idx === -1) { selected[key].push(text); el.classList.add('selected'); }
+  else { selected[key].splice(idx, 1); el.classList.remove('selected'); }
+  updatePreview(key);
+}
+
+function addCustomTag(key) {
+  const input = document.getElementById('custom-' + key);
+  const val = input.value.trim();
+  if (!val) return;
+  const pool = document.getElementById('pool-' + key);
+  const existing = pool.querySelector('[data-value="' + CSS.escape(val) + '"]');
+  if (existing) { if (!existing.classList.contains('selected')) toggleTag(existing, key, val); input.value = ''; return; }
+  const tag = createTagEl(val, key, true);
+  const del = document.createElement('span');
+  del.textContent = '×';
+  del.style.cssText = 'margin-left:4px;font-size:13px;line-height:1;opacity:0.7;';
+  del.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const idx = selected[key].indexOf(val);
+    if (idx !== -1) selected[key].splice(idx, 1);
+    tag.remove();
+    updatePreview(key);
+  });
+  tag.appendChild(del);
+  pool.appendChild(tag);
+  selected[key].push(val);
+  tag.classList.add('selected');
+  updatePreview(key);
+  input.value = '';
+}
+
+function updatePreview(key) {
+  const el = document.getElementById('preview-' + key);
+  if (selected[key].length === 0) { el.textContent = '선택된 키워드가 없습니다'; el.classList.remove('active'); }
+  else { el.textContent = selected[key].join('  ·  '); el.classList.add('active'); }
+}
+
+async function generateReport() {
+  const jobRole = document.getElementById('jobRole').value.trim();
+  if (!jobRole) { showToast('팀과 직무를 먼저 선택해주세요'); return; }
+  if (selected.interview.length === 0) { showToast('면담 내용 키워드를 1개 이상 선택해주세요'); return; }
+
+  const btn = document.getElementById('btnGenerate');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btnText');
+  btn.disabled = true; spinner.style.display = 'block'; btnText.textContent = 'AI가 작성 중입니다...';
+
+  const internName = document.getElementById('internName').value.trim() || '인턴';
+  const interviewDate = document.getElementById('interviewDate').value;
+  const weekNum = document.getElementById('weekNum').value;
+
+  const systemPrompt = `당신은 청년일경험 지원사업의 기업 멘토입니다. 인턴 면담 일지를 작성합니다.
+규칙: 각 항목 1~2문장, 간명한 서술체(~함. ~확인함. ~예정임.), 사실 위주, 직무 맥락에 맞는 구체적 내용, 목록 나열 금지, 순수 JSON만 응답`;
+
+  const userPrompt = `인턴 면담 일지 4개 항목을 작성해주세요.
+인턴: ${internName} | 직무·부서: ${jobRole} | ${weekNum ? weekNum + '주차' : ''} | ${interviewDate}
+면담 내용 키워드: ${selected.interview.join(', ')}
+건의 및 문의 키워드: ${selected.suggestion.length ? selected.suggestion.join(', ') : '없음'}
+조치사항 키워드: ${selected.action.length ? selected.action.join(', ') : '없음'}
+기타 키워드: ${selected.etc.length ? selected.etc.join(', ') : '없음'}
+{"interview":"...","suggestion":"...","action":"...","etc":"..."}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json',
+'x-api-key': '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',
+'anthropic-version': '2023-06-01',
+'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(raw);
+    document.getElementById('resultInterview').textContent = parsed.interview || '';
+    document.getElementById('resultSuggestion').textContent = parsed.suggestion || '';
+    document.getElementById('resultAction').textContent = parsed.action || '';
+    document.getElementById('resultEtc').textContent = parsed.etc || '';
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast('면담 일지가 작성되었습니다 ✓');
+  } catch (err) {
+    showToast('오류가 발생했습니다. 다시 시도해주세요.');
+    console.error(err);
+  } finally {
+    btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '✦ AI로 면담 일지 다시 작성하기';
+  }
+}
+
+function copyItem(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('복사되었습니다'));
+}
+
+function copyAll() {
+  const parts = [
+    '면담 내용:\n' + document.getElementById('resultInterview').textContent,
+    '\n건의 및 문의:\n' + document.getElementById('resultSuggestion').textContent,
+    '\n조치사항:\n' + document.getElementById('resultAction').textContent,
+    '\n기타:\n' + document.getElementById('resultEtc').textContent,
+  ];
+  navigator.clipboard.writeText(parts.join('\n')).then(() => showToast('전체 내용이 복사되었습니다'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+document.getElementById('interviewDate').valueAsDate = new Date();
+loadKeywords('cx');
+</script>
+</body>
+</html>
